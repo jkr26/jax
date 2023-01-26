@@ -55,7 +55,7 @@ jax_test(
     name = "array_interoperability_test",
     srcs = ["array_interoperability_test.py"],
     disable_backends = ["tpu"],
-    deps = py_deps("tensorflow"),
+    deps = py_deps("tensorflow_core"),
 )
 
 jax_test(
@@ -249,7 +249,7 @@ jax_test(
         "tpu": 10,
         "iree": 10,
     },
-    deps = py_deps("pil") + py_deps("tensorflow"),
+    deps = py_deps("pil") + py_deps("tensorflow_core"),
 )
 
 jax_test(
@@ -274,7 +274,7 @@ py_test(
         "//jax:test_util",
         "//jax/experimental/jax2tf",
         "//jax/tools:jax_to_ir",
-    ] + py_deps("tensorflow"),
+    ] + py_deps("tensorflow_core"),
 )
 
 jax_test(
@@ -913,7 +913,7 @@ jax_test(
     deps = [
         "//jax:experimental_host_callback",
         "//jax:ode",
-    ] + py_deps("tensorflow"),
+    ] + py_deps("tensorflow_core"),
 )
 
 jax_test(
