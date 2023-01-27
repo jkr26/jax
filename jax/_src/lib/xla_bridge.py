@@ -254,6 +254,58 @@ if hasattr(xla_client, "make_plugin_device_client"):
   register_backend_factory("plugin", xla_client.make_plugin_device_client,
       priority=400)
 
+
+def _get_pjrt_plugin_names_and_library_paths() -> Dict[str, str]:
+  """Gets the names and library paths of PJRT plugins to load from ENV.
+
+  A backend factory will be registered for every PJRT plugin set in ENV
+  PJRT_NAMES_AND_LIBRARY_PATHS='name1:path1,name2:path2'. TPU PJRT plugin will
+  be loaded and registered separately in make_tpu_client.
+
+  Returns:
+    A dict of {plugin_name: library path} for the PJRT plugins to load.
+  """
+  plugins_from_env = os.getenv('PJRT_NAMES_AND_LIBRARY_PATHS', '')
+  if not plugins_from_env:
+    return {}
+
+  pjrt_plugins = {}
+  for plugin in plugins_from_env.split(','):
+    try:
+      name, library_path = plugin.split(':')
+      pjrt_plugins[name] = library_path
+    except ValueError:
+      logger.warning(
+          'invalid value in env PJRT_NAMES_AND_LIBRARY_PATHS: %s', plugin
+      )
+  return pjrt_plugins
+
+
+# Registers a backend factor for every plugin found.
+def register_pjrt_plugin_factories():
+  def make_factory(name, path):
+    def factory():
+      try:
+        xla_client.load_pjrt_plugin_dynamically(name, path)
+      except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "Error loading plugin %s from '%s' dynamically: %s", name, path, e
+        )
+      return xla_client.make_c_api_client(name)
+
+    return factory
+
+  pjrt_plugins = _get_pjrt_plugin_names_and_library_paths()
+  for plugin_name, library_path in pjrt_plugins.items():
+    logger.debug('registering PJRT plugin: %s', plugin_name)
+    register_backend_factory(
+        plugin_name, make_factory(plugin_name, library_path), priority=400
+    )
+
+
+if hasattr(xla_client, 'make_c_api_client'):
+  register_pjrt_plugin_factories()
+
 if iree is not None:
   register_backend_factory("iree", iree.iree_client_factory, priority=-100)
 
@@ -328,8 +380,6 @@ def backends():
           (platform, priority) for platform, (_, priority)
           in _backend_factories.items())
     default_priority = -1000
-    if hasattr(xla_client, "maybe_load_pjrt_plugins"):
-      xla_client.maybe_load_pjrt_plugins()
     for platform, priority in platforms_and_priorites:
       try:
         backend = _init_backend(platform)
