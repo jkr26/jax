@@ -356,7 +356,8 @@ def _xla_callable_uncached(fun: lu.WrappedFun, device, backend, name,
   if config.jax_array:
     computation = sharded_lowering(fun, device, backend, name, donated_invars,
                                    False, keep_unused, *arg_specs)
-    return computation.compile(_allow_propagation_to_outputs=True).unsafe_call
+    allow_prop = [True] * len(computation.compile_args['out_shardings'])
+    return computation.compile(_allow_propagation_to_outputs=allow_prop).unsafe_call
   else:
     return lower_xla_callable(fun, device, backend, name, donated_invars, False,
                               keep_unused, *arg_specs).compile().unsafe_call
